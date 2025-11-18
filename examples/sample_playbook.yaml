@@ -1,0 +1,8 @@
+actions:
+  - type: restart_container
+    target: validator-1
+  - type: remove_from_load_balancer
+    target: validator-1
+  - type: send_alert
+    channel: telegram
+    message: "High failure risk detected for validator-1. Auto restart + LB remove executed."

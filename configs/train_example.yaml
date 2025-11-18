@@ -1,0 +1,17 @@
+data:
+  train_csv: data/train_logs.csv
+  valid_csv: data/valid_logs.csv
+  sequence_length: 60
+
+training:
+  batch_size: 256
+  epochs: 20
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  num_workers: 8
+  output_dir: checkpoints_h200
+
+model:
+  hidden_dim: 256
+  num_layers: 4
+  dropout: 0.2
