@@ -29,7 +29,6 @@ class FailurePredictorModel(nn.Module):
         self.fc = nn.Linear(hidden_dim, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, T, input_dim)
         out, _ = self.gru(x)
         last_hidden = out[:, -1, :]
         logits = self.fc(last_hidden)

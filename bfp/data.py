@@ -60,7 +60,7 @@ def create_dataloaders(
     valid_path: Path | None,
     sequence_length: int,
     batch_size: int,
-    num_workers: int = 4,
+    num_workers: int = 8,
 ):
     train_ds = LogDataset(LogDataConfig(path=train_path, sequence_length=sequence_length))
     train_loader = DataLoader(

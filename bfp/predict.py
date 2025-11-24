@@ -1,11 +1,8 @@
 import argparse
-from pathlib import Path
-
 import pandas as pd
 import torch
-
+from pathlib import Path
 from .model import FailurePredictorModel
-
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -14,7 +11,6 @@ def parse_args():
     p.add_argument("--sequence-length", type=int, default=60)
     p.add_argument("--device", type=str, default="cuda")
     return p.parse_args()
-
 
 def main():
     args = parse_args()
@@ -30,8 +26,7 @@ def main():
         dropout=ckpt["dropout"],
     )
     model.load_state_dict(ckpt["model_state_dict"])
-    model.to(device)
-    model.eval()
+    model.to(device).eval()
 
     df = pd.read_csv(args.input_csv)
     feature_cols = [c for c in df.columns if c not in ("timestamp", "label")]
@@ -43,7 +38,6 @@ def main():
         prob = model(x).item()
 
     print(f"Predicted failure probability: {prob:.4f}")
-
 
 if __name__ == "__main__":
     main()

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from typing import Tuple
 
 import torch
 import torch.distributed as dist
@@ -46,15 +45,8 @@ def cleanup_ddp():
         dist.destroy_process_group()
 
 
-def create_dataloaders_ddp(
-    train_path: Path,
-    valid_path: Path | None,
-    sequence_length: int,
-    batch_size: int,
-    num_workers: int,
-    rank: int,
-    world_size: int,
-) -> Tuple[DataLoader, DataLoader | None, int]:
+def create_dataloaders_ddp(train_path: Path, valid_path: Path | None, sequence_length: int,
+                           batch_size: int, num_workers: int, rank: int, world_size: int):
     train_ds = LogDataset(LogDataConfig(path=train_path, sequence_length=sequence_length))
     train_sampler = DistributedSampler(train_ds, num_replicas=world_size, rank=rank, shuffle=True)
     train_loader = DataLoader(
@@ -81,18 +73,12 @@ def create_dataloaders_ddp(
 
     sample_x, _ = next(iter(train_loader))
     input_dim = sample_x.shape[-1]
-
     return train_loader, valid_loader, input_dim
 
 
-def train_one_epoch(
-    model: DDP,
-    loader: DataLoader,
-    criterion: nn.Module,
-    optimizer: torch.optim.Optimizer,
-    scaler: torch.cuda.amp.GradScaler,
-    device: torch.device,
-) -> tuple[float, float]:
+def train_one_epoch(model: DDP, loader: DataLoader, criterion: nn.Module,
+                    optimizer: torch.optim.Optimizer, scaler: torch.cuda.amp.GradScaler,
+                    device: torch.device):
     model.train()
     total_loss = 0.0
     total_correct = 0
@@ -127,12 +113,7 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(
-    model: DDP,
-    loader: DataLoader,
-    criterion: nn.Module,
-    device: torch.device,
-) -> tuple[float, float]:
+def evaluate(model: DDP, loader: DataLoader, criterion: nn.Module, device: torch.device):
     model.eval()
     total_loss = 0.0
     total_correct = 0
@@ -188,11 +169,7 @@ def ddp_worker(rank: int, world_size: int, args: argparse.Namespace):
     ddp_model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
     criterion = nn.BCELoss()
-    optimizer = AdamW(
-        ddp_model.parameters(),
-        lr=args.lr,
-        weight_decay=args.weight_decay,
-    )
+    optimizer = AdamW(ddp_model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scaler = torch.cuda.amp.GradScaler()
 
     output_dir = Path(args.output_dir)
@@ -204,9 +181,7 @@ def ddp_worker(rank: int, world_size: int, args: argparse.Namespace):
     for epoch in range(1, args.epochs + 1):
         train_loader.sampler.set_epoch(epoch)
 
-        train_loss, train_acc = train_one_epoch(
-            ddp_model, train_loader, criterion, optimizer, scaler, device
-        )
+        train_loss, train_acc = train_one_epoch(ddp_model, train_loader, criterion, optimizer, scaler, device)
 
         if valid_loader is not None:
             val_loss, val_acc = evaluate(ddp_model, valid_loader, criterion, device)
@@ -214,11 +189,8 @@ def ddp_worker(rank: int, world_size: int, args: argparse.Namespace):
             val_loss, val_acc = float("nan"), float("nan")
 
         if rank == 0:
-            print(
-                f"[Rank 0][Epoch {epoch:03d}] "
-                f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} | "
-                f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}"
-            )
+            print(f"[Epoch {epoch:03d}] train_loss={train_loss:.4f} train_acc={train_acc:.4f} | "
+                  f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}")
 
             if valid_loader is not None and val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -243,7 +215,6 @@ def main():
     world_size = torch.cuda.device_count()
     if world_size < 1:
         raise RuntimeError("No CUDA device available")
-
     mp.spawn(ddp_worker, args=(world_size, args), nprocs=world_size, join=True)
 
 
